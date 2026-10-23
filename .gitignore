@@ -10,3 +10,6 @@ replication/data/
 
 # Copyrighted reference papers (kept locally only)
 docs/previous_works/
+
+# Local tool settings
+.claude/

@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Ensemble-DQN Replication Check</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column (audit report) that widens for charts and tables. */
+:root {
+  --bg: #f4f6f8;
+  --surface: #ffffff;
+  --ink: #15212c;
+  --muted: #5b6875;
+  --rule: #d7dde3;
+  --accent: #0d6b84;
+  --accent-soft: #e2f0f4;
+  --good: #23764a;
+  --good-soft: #e3f2e8;
+  --warn: #9a5b00;
+  --warn-soft: #fbefdc;
+  --bad: #ad2d24;
+  --bad-soft: #f9e4e2;
+  --m-a3: #4a6890;
+  --m-lstm: #b87410;
+  --m-rl: #2f8657;
+  --m-prop: #b3365e;
+  --font-display: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", Roboto, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f161c; --surface: #172129; --ink: #e3e9ee; --muted: #93a1ad; --rule: #2a3742;
+    --accent: #5bb8d1; --accent-soft: #15323c;
+    --good: #6cc995; --good-soft: #163325; --warn: #e2a34a; --warn-soft: #3a2a12;
+    --bad: #ee8077; --bad-soft: #3c1b19;
+    --m-a3: #87a5cf; --m-lstm: #e3a447; --m-rl: #66c08d; --m-prop: #ea7aa0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f161c; --surface: #172129; --ink: #e3e9ee; --muted: #93a1ad; --rule: #2a3742;
+  --accent: #5bb8d1; --accent-soft: #15323c;
+  --good: #6cc995; --good-soft: #163325; --warn: #e2a34a; --warn-soft: #3a2a12;
+  --bad: #ee8077; --bad-soft: #3c1b19;
+  --m-a3: #87a5cf; --m-lstm: #e3a447; --m-rl: #66c08d; --m-prop: #ea7aa0;
+  color-scheme: dark;
+}
+
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 16px; line-height: 1.55; }
+.page { max-width: 1080px; margin: 0 auto; padding-block: 40px 64px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+        display: grid; gap: 48px; }
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: clamp(1.9rem, 4vw, 2.6rem); font-weight: 800; line-height: 1.1; }
+h2 { font-size: 1.45rem; font-weight: 700; }
+h3 { font-size: 1.05rem; font-weight: 700; }
+p { margin: 0; max-width: 68ch; }
+.eyebrow { font-family: var(--font-data); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.muted { color: var(--muted); }
+.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+section { display: grid; gap: 18px; min-width: 0; }
+.section-head { display: grid; gap: 6px; }
+
+/* Header */
+header { display: grid; gap: 14px; }
+.cite { font-size: 0.95rem; color: var(--muted); max-width: 72ch; }
+.cite em { color: var(--ink); }
+.verdict { display: flex; gap: 12px; align-items: flex-start; background: var(--good-soft); color: var(--ink);
+           border: 1px solid color-mix(in srgb, var(--good) 35%, transparent); border-radius: 10px; padding: 14px 16px; max-width: 80ch; }
+.verdict .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--good); margin-top: 8px; }
+
+/* Key figures */
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.tile { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.tile .label { font-size: 0.85rem; color: var(--muted); }
+.tile .value { font-family: var(--font-display); font-size: 1.9rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.tile .value small { font-size: 1rem; font-weight: 600; color: var(--muted); }
+.tile .note { font-size: 0.85rem; color: var(--muted); }
+
+/* Method list */
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 0; padding: 0; list-style: none; counter-reset: step; }
+.steps li { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 4px; counter-increment: step; }
+.steps li::before { content: "Step " counter(step); font-family: var(--font-data); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }
+.steps code, p code, td code { font-family: var(--font-data); font-size: 0.85em; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+
+/* Charts */
+.charts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.chart { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 12px 12px 6px; min-width: 0; }
+.chart h3 { font-size: 0.95rem; margin: 2px 4px 4px; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart text { fill: var(--muted); font-family: var(--font-data); font-size: 10px; }
+.axis { stroke: var(--rule); }
+.diag { stroke: var(--muted); stroke-dasharray: 4 4; opacity: 0.6; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 0.88rem; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+/* Controls */
+.controls { display: flex; flex-wrap: wrap; gap: 10px 20px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.seg button { font: inherit; font-size: 0.88rem; border: 0; background: transparent; color: var(--muted); padding: 7px 12px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--rule); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--surface); font-weight: 600; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ctl-label { font-size: 0.85rem; color: var(--muted); }
+
+/* Tables */
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; }
+table { border-collapse: collapse; width: 100%; font-size: 0.92rem; }
+th, td { padding: 9px 12px; text-align: right; white-space: nowrap; }
+th { font-family: var(--font-body); font-weight: 600; font-size: 0.8rem; color: var(--muted); border-bottom: 1px solid var(--rule); background: var(--bg); }
+th:first-child, td:first-child, th.left, td.left { text-align: left; }
+td { font-family: var(--font-data); font-variant-numeric: tabular-nums; border-bottom: 1px solid var(--rule); }
+tbody tr:last-child td { border-bottom: 0; }
+tr.group-start td { border-top: 2px solid var(--rule); }
+td.method { font-family: var(--font-body); font-weight: 500; }
+.mdot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+.chip { display: inline-block; font-family: var(--font-body); font-size: 0.78rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+.chip.exact { background: var(--good-soft); color: var(--good); }
+.chip.close { background: var(--accent-soft); color: var(--accent); }
+.chip.differs { background: var(--warn-soft); color: var(--warn); }
+.chip.fail { background: var(--bad-soft); color: var(--bad); }
+.chip.na { background: var(--bg); color: var(--muted); box-shadow: inset 0 0 0 1px var(--rule); }
+.table-note { font-size: 0.85rem; color: var(--muted); }
+
+/* Seed strip */
+.seed-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+
+/* Scope list */
+.scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.scope div { background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; }
+.tag { font-family: var(--font-data); font-size: 0.72rem; letter-spacing: 0.06em; text-transform: uppercase; }
+.tag.ok { color: var(--good); } .tag.partial { color: var(--warn); } .tag.no { color: var(--bad); }
+
+footer { font-size: 0.88rem; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 18px; display: grid; gap: 6px; }
+
+/* Four-item rows: 4 columns, then 2, then 1, so no item sits alone. */
+.tiles, .steps, .charts, .seed-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .tiles, .steps, .charts, .seed-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .tiles, .steps, .charts, .seed-grid { grid-template-columns: minmax(0, 1fr); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .chart circle { transition: r 0.15s ease; }
+}
+</style>
+
+<div class="page">
+
+<header>
+  <div class="eyebrow">Replication check · Part A · authors' method, unchanged</div>
+  <h1>Does the published code reproduce the paper's results?</h1>
+  <p class="cite">Jalili Sanjarani, Elmi Sola, Hasanpour, Neghabi. <em>Handover reduction in 5G mobile networks using ensemble learning method.</em> Scientific Reports, 2026. doi:10.1038/s41598-026-73269-1</p>
+  <div class="verdict"><span class="dot" aria-hidden="true"></span>
+    <p><strong>Yes, for the simulated experiments.</strong> Running the authors' own code without any change reproduces Table 4 and the headline percentages. One condition applies: the result depends on the random seed. 2 of the 11 seeds we tried, including the code's default seed 42, give a failed DQN training run.</p>
+  </div>
+</header>
+
+<section aria-labelledby="key-h">
+  <div class="section-head">
+    <div class="eyebrow">At a glance</div>
+    <h2 id="key-h">Key figures</h2>
+  </div>
+  <div class="tiles" id="tiles"></div>
+</section>
+
+<section aria-labelledby="how-h">
+  <div class="section-head">
+    <div class="eyebrow">What we ran</div>
+    <h2 id="how-h">Method of the replication</h2>
+    <p class="muted">Nothing in the authors' method was re-written or corrected. Our script only calls their functions in the order their own <code>main()</code> does.</p>
+  </div>
+  <ol class="steps">
+    <li><strong>Authors' code</strong><span class="muted">Official repository <code>mjs19971997/ensemble-dqn-5g-handover</code>, commit <code>b61e399</code>, imported unmodified.</span></li>
+    <li><strong>Authors' data</strong><span class="muted">Scale1x/2x/3x datasets regenerated with their <code>generate_data.py</code>, seed 42 (20/40/60 cells, 10,000/20,000/30,000 rows).</span></li>
+    <li><strong>Authors' pipeline</strong><span class="muted">70/30 split, K-Means + PCA + Decision Tree, 3-epoch DQN pre-training, margin δ = 0.2, A3 / LSTM / RL baselines.</span></li>
+    <li><strong>Repetitions</strong><span class="muted">30 Monte-Carlo runs per point, as in the paper, repeated for experiment seeds 0–9 and 42. The tables show the median over seeds 0–9.</span></li>
+  </ol>
+</section>
+
+<section aria-labelledby="parity-h">
+  <div class="section-head">
+    <div class="eyebrow">Table 4 · Scale1x · 16 points per metric</div>
+    <h2 id="parity-h">Published value vs replicated value</h2>
+    <p class="muted">Each dot is one method at one user count. A dot on the dashed line means the replication gives exactly the published number.</p>
+  </div>
+  <div class="controls">
+    <span class="ctl-label" id="src-label">Replicated value</span>
+    <div class="seg" role="group" aria-labelledby="src-label" id="src-toggle">
+      <button type="button" id="src-median" data-src="median" aria-pressed="true">Median of seeds 0–9</button>
+      <button type="button" id="src-s42" data-src="s42" aria-pressed="false">Default seed 42</button>
+    </div>
+  </div>
+  <div class="charts" id="parity"></div>
+  <div class="legend" id="legend"></div>
+</section>
+
+<section aria-labelledby="table-h">
+  <div class="section-head">
+    <div class="eyebrow">Table 4 · side by side</div>
+    <h2 id="table-h">Every number in Table 4</h2>
+  </div>
+  <div class="controls">
+    <span class="ctl-label" id="metric-label">Metric</span>
+    <div class="seg" role="group" aria-labelledby="metric-label" id="metric-toggle">
+      <button type="button" id="m-handovers" data-metric="handovers" aria-pressed="true">Handovers</button>
+      <button type="button" id="m-failure" data-metric="failure" aria-pressed="false">Failure</button>
+      <button type="button" id="m-delay" data-metric="delay" aria-pressed="false">Delay (s)</button>
+      <button type="button" id="m-throughput" data-metric="throughput" aria-pressed="false">Throughput (Mbps)</button>
+    </div>
+  </div>
+  <div class="table-wrap"><table id="t4"></table></div>
+  <p class="table-note"><span class="chip exact">Exact</span> differs by less than 0.5%. <span class="chip close">Close</span> is within 5%, inside the paper's own 95% CI, or inside the range of our 10 seeds. <span class="chip differs">Differs</span> is none of these. With seed 42 selected above, the table compares against that single run instead.</p>
+</section>
+
+<section aria-labelledby="claims-h">
+  <div class="section-head">
+    <div class="eyebrow">Text and abstract</div>
+    <h2 id="claims-h">Headline claims, recomputed</h2>
+    <p class="muted">Percentages come from the paper's own numbers and from ours in the same way: 1 − Proposed / baseline.</p>
+  </div>
+  <div class="table-wrap"><table id="claims"></table></div>
+</section>
+
+<section aria-labelledby="seed-h">
+  <div class="section-head">
+    <div class="eyebrow">Run-to-run stability</div>
+    <h2 id="seed-h">Proposed handovers for each experiment seed</h2>
+    <p class="muted">The dashed line is the published value. Nine seeds land near it. Seeds 1 and 42 do not: their DQN pre-training collapses, and the method then makes more handovers than A3 at 500 users (152 vs 142).</p>
+  </div>
+  <div class="seed-grid" id="seeds"></div>
+</section>
+
+<section aria-labelledby="scales-h">
+  <div class="section-head">
+    <div class="eyebrow">Figures 9 and 10 · seed 42 · mean ± 95% CI over 30 runs</div>
+    <h2 id="scales-h">Scale2x and Scale3x</h2>
+    <p class="muted">The paper shows these scales only as bar charts. The numbers it quotes in the text are compared in the claims table above. At both scales the method ranking is the same as in the paper: Proposed has the fewest handovers, then RL, LSTM and A3.</p>
+  </div>
+  <div class="controls">
+    <span class="ctl-label" id="scale-label">Scale</span>
+    <div class="seg" role="group" aria-labelledby="scale-label" id="scale-toggle">
+      <button type="button" id="s-2" data-scale="2" aria-pressed="true">Scale2x · 40 cells</button>
+      <button type="button" id="s-3" data-scale="3" aria-pressed="false">Scale3x · 60 cells</button>
+    </div>
+  </div>
+  <div class="table-wrap"><table id="scales"></table></div>
+</section>
+
+<section aria-labelledby="scope-h">
+  <div class="section-head">
+    <div class="eyebrow">Coverage</div>
+    <h2 id="scope-h">What could and could not be replicated</h2>
+  </div>
+  <div class="scope">
+    <div><span class="tag ok">Reproduced</span><h3>Table 4 and Figure 8 (Scale1x)</h3><p class="muted">All four metrics at all four user counts, using the seed median.</p></div>
+    <div><span class="tag ok">Reproduced</span><h3>Figures 9 and 10 (Scale2x, Scale3x)</h3><p class="muted">Same ranking and similar values. The quoted Scale3x figures (Proposed 21.3, RL 46.2) come out at 24.4 and 49.7.</p></div>
+    <div><span class="tag partial">Partly checkable</span><h3>Scale2x numbers quoted in the text</h3><p class="muted">The paper's Scale2x values (11.8 / 11.1 / 7.1 / 0.22 Mbps) are identical to its Scale1x values. Our Scale2x run gives 10.8 / 10.4 / 5.0 / 0.25 Mbps.</p></div>
+    <div><span class="tag no">Not possible</span><h3>Figure 7 (real ANATEL drive-test data)</h3><p class="muted">The real traces are only "available on request" and are not in the repository.</p></div>
+    <div><span class="tag no">Not possible</span><h3>Figures 5, 6 and Table 3</h3><p class="muted">These come from a separate simplified simulator (100 × 100 m², 7 SBSs) that was not released. Its Differential Evolution step is not specified.</p></div>
+    <div><span class="tag no">Not measured</span><h3>Inference latency below 1 ms</h3><p class="muted">The released scripts do not time decisions, so this claim was not checked.</p></div>
+  </div>
+</section>
+
+<footer>
+  <p>This page checks one thing: whether the authors' published method, run as published, gives the published numbers. It does not judge whether the evaluation itself is sound. That review is the next step.</p>
+  <p>Sources: <code>replication/results/seed_sweep_scale1x.csv</code>, <code>replication_runs.csv</code>, <code>paper_table4.csv</code> in the project repository.</p>
+</footer>
+
+</div>
+
+<script>
+const METHODS = ["A3", "LSTM", "RL", "Proposed"];
+const MCOLOR = { A3: "var(--m-a3)", LSTM: "var(--m-lstm)", RL: "var(--m-rl)", Proposed: "var(--m-prop)" };
+const METRICS = {
+  handovers: { label: "Handovers", digits: 1 },
+  failure: { label: "Failure probability", digits: 3 },
+  delay: { label: "Delay (s)", digits: 3 },
+  throughput: { label: "Throughput (Mbps)", digits: 2 },
+};
+// Published 95% CI from Table 4 (same order as rows below).
+const PAPER_CI = {
+  handovers: [0,0,1.1,1.1, 0,0,1.4,1.1, 0,0,1.3,1.1, 0,0,2.7,1.8],
+  failure: [.017,.014,.013,.020, .009,.011,.007,.017, .008,.006,.008,.025, .006,.006,.003,.012],
+  delay: [.002,.001,.002,.013, .001,.001,.001,.004, .001,.001,.001,.003, .001,.000,.000,.003],
+  throughput: [0,0,.29,.30, 0,0,.18,.18, 0,0,.13,.15, 0,0,.14,.12],
+};
+
+const T4 = [{"users":100,"method":"A3","handovers_paper":27.0,"failure_paper":0.038,"delay_paper":0.31,"throughput_paper":0.31,"handovers_median":27.0,"failure_median":0.05,"delay_median":0.3102,"throughput_median":0.3068,"handovers_min":27.0,"failure_min":0.0259,"delay_min":0.3063,"throughput_min":0.3068,"handovers_max":27.0,"failure_max":0.0617,"delay_max":0.3117,"throughput_max":0.3068,"handovers_s42":27.0,"failure_s42":0.0519,"delay_s42":0.3076,"throughput_s42":0.3068},{"users":100,"method":"LSTM","handovers_paper":21.0,"failure_paper":0.025,"delay_paper":0.17,"throughput_paper":6.59,"handovers_median":21.0,"failure_median":0.0246,"delay_median":0.1712,"throughput_median":6.5932,"handovers_min":21.0,"failure_min":0.0127,"delay_min":0.17,"throughput_min":6.5932,"handovers_max":21.0,"failure_max":0.0413,"delay_max":0.1733,"throughput_max":6.5932,"handovers_s42":21.0,"failure_s42":0.0175,"delay_s42":0.1702,"throughput_s42":6.5932},{"users":100,"method":"RL","handovers_paper":9.0,"failure_paper":0.012,"delay_paper":0.104,"throughput_paper":10.28,"handovers_median":9.1833,"failure_median":0.0044,"delay_median":0.103,"throughput_median":10.3884,"handovers_min":8.8667,"failure_min":0.0,"delay_min":0.1023,"throughput_min":10.2564,"handovers_max":9.8667,"failure_max":0.0233,"delay_max":0.1045,"throughput_max":10.5074,"handovers_s42":9.2667,"failure_s42":0.0,"delay_s42":0.1041,"throughput_s42":10.379},{"users":100,"method":"Proposed","handovers_paper":5.1,"failure_paper":0.015,"delay_paper":0.177,"throughput_paper":10.9,"handovers_median":4.5833,"failure_median":0.015,"delay_median":0.1804,"throughput_median":11.0528,"handovers_min":3.9667,"failure_min":0.0,"delay_min":0.1606,"throughput_min":8.7778,"handovers_max":14.8667,"failure_max":0.0553,"delay_max":0.1849,"throughput_max":11.3212,"handovers_s42":23.1,"failure_s42":0.0132,"delay_s42":0.182,"throughput_s42":7.5872},{"users":200,"method":"A3","handovers_paper":55.0,"failure_paper":0.05,"delay_paper":0.31,"throughput_paper":0.22,"handovers_median":55.0,"failure_median":0.0461,"delay_median":0.31,"throughput_median":0.2246,"handovers_min":55.0,"failure_min":0.0424,"delay_min":0.3085,"throughput_min":0.2246,"handovers_max":55.0,"failure_max":0.0842,"delay_max":0.3115,"throughput_max":0.2246,"handovers_s42":55.0,"failure_s42":0.0788,"delay_s42":0.312,"throughput_s42":0.2246},{"users":200,"method":"LSTM","handovers_paper":43.0,"failure_paper":0.035,"delay_paper":0.171,"throughput_paper":7.13,"handovers_median":43.0,"failure_median":0.0252,"delay_median":0.1712,"throughput_median":7.1316,"handovers_min":43.0,"failure_min":0.0217,"delay_min":0.1704,"throughput_min":7.1316,"handovers_max":43.0,"failure_max":0.0357,"delay_max":0.1717,"throughput_max":7.1316,"handovers_s42":43.0,"failure_s42":0.0442,"delay_s42":0.1708,"throughput_s42":7.1316},{"users":200,"method":"RL","handovers_paper":19.2,"failure_paper":0.006,"delay_paper":0.103,"throughput_paper":11.12,"handovers_median":18.4167,"failure_median":0.0045,"delay_median":0.1039,"throughput_median":11.1704,"handovers_min":16.9667,"failure_min":0.0021,"delay_min":0.1004,"throughput_min":10.712,"handovers_max":22.6333,"failure_max":0.0207,"delay_max":0.1047,"throughput_max":11.2932,"handovers_s42":22.1667,"failure_s42":0.002,"delay_s42":0.1006,"throughput_s42":10.8429},{"users":200,"method":"Proposed","handovers_paper":9.2,"failure_paper":0.036,"delay_paper":0.181,"throughput_paper":11.82,"handovers_median":9.7667,"failure_median":0.02,"delay_median":0.1788,"throughput_median":11.7534,"handovers_min":8.1,"failure_min":0.0037,"delay_min":0.1694,"throughput_min":8.9616,"handovers_max":35.5,"failure_max":0.0474,"delay_max":0.1847,"throughput_max":12.1014,"handovers_s42":58.6667,"failure_s42":0.0182,"delay_s42":0.1781,"throughput_s42":7.4029},{"users":300,"method":"A3","handovers_paper":84.0,"failure_paper":0.046,"delay_paper":0.311,"throughput_paper":0.18,"handovers_median":84.0,"failure_median":0.0476,"delay_median":0.3101,"throughput_median":0.175,"handovers_min":84.0,"failure_min":0.0444,"delay_min":0.3093,"throughput_min":0.175,"handovers_max":84.0,"failure_max":0.0579,"delay_max":0.3107,"throughput_max":0.175,"handovers_s42":84.0,"failure_s42":0.0492,"delay_s42":0.3103,"throughput_s42":0.175},{"users":300,"method":"LSTM","handovers_paper":68.0,"failure_paper":0.026,"delay_paper":0.171,"throughput_paper":6.42,"handovers_median":68.0,"failure_median":0.0301,"delay_median":0.171,"throughput_median":6.4171,"handovers_min":68.0,"failure_min":0.0235,"delay_min":0.1707,"throughput_min":6.4171,"handovers_max":68.0,"failure_max":0.0333,"delay_max":0.1713,"throughput_max":6.4171,"handovers_s42":68.0,"failure_s42":0.0275,"delay_s42":0.171,"throughput_s42":6.4171},{"users":300,"method":"RL","handovers_paper":27.6,"failure_paper":0.011,"delay_paper":0.104,"throughput_paper":10.8,"handovers_median":27.9333,"failure_median":0.0069,"delay_median":0.1038,"throughput_median":10.9298,"handovers_min":26.3667,"failure_min":0.0035,"delay_min":0.1029,"throughput_min":10.7634,"handovers_max":29.0333,"failure_max":0.0196,"delay_max":0.1043,"throughput_max":11.056,"handovers_s42":29.7667,"failure_s42":0.0211,"delay_s42":0.1039,"throughput_s42":10.7486},{"users":300,"method":"Proposed","handovers_paper":13.3,"failure_paper":0.026,"delay_paper":0.181,"throughput_paper":11.58,"handovers_median":13.9167,"failure_median":0.0136,"delay_median":0.1789,"throughput_median":11.5444,"handovers_min":12.3667,"failure_min":0.002,"delay_min":0.1755,"throughput_min":8.736,"handovers_max":53.5333,"failure_max":0.0394,"delay_max":0.1813,"throughput_max":11.6827,"handovers_s42":89.3,"failure_s42":0.0225,"delay_s42":0.1782,"throughput_s42":7.1355},{"users":500,"method":"A3","handovers_paper":142.0,"failure_paper":0.047,"delay_paper":0.309,"throughput_paper":0.14,"handovers_median":142.0,"failure_median":0.0498,"delay_median":0.3098,"throughput_median":0.1406,"handovers_min":142.0,"failure_min":0.0472,"delay_min":0.3093,"throughput_min":0.1406,"handovers_max":142.0,"failure_max":0.0523,"delay_max":0.3115,"throughput_max":0.1406,"handovers_s42":142.0,"failure_s42":0.0441,"delay_s42":0.3102,"throughput_s42":0.1406},{"users":500,"method":"LSTM","handovers_paper":106.0,"failure_paper":0.03,"delay_paper":0.171,"throughput_paper":6.22,"handovers_median":106.0,"failure_median":0.0286,"delay_median":0.1709,"throughput_median":6.2181,"handovers_min":106.0,"failure_min":0.0217,"delay_min":0.1704,"throughput_min":6.2181,"handovers_max":106.0,"failure_max":0.0324,"delay_max":0.1713,"throughput_max":6.2181,"handovers_s42":106.0,"failure_s42":0.0277,"delay_s42":0.1706,"throughput_s42":6.2181},{"users":500,"method":"RL","handovers_paper":47.6,"failure_paper":0.006,"delay_paper":0.104,"throughput_paper":10.43,"handovers_median":47.05,"failure_median":0.0108,"delay_median":0.1042,"throughput_median":10.4321,"handovers_min":42.2,"failure_min":0.0,"delay_min":0.1034,"throughput_min":10.2993,"handovers_max":50.3667,"failure_max":0.0166,"delay_max":0.1053,"throughput_max":10.6334,"handovers_s42":46.8333,"failure_s42":0.0105,"delay_s42":0.104,"throughput_s42":10.4411},{"users":500,"method":"Proposed","handovers_paper":21.3,"failure_paper":0.019,"delay_paper":0.181,"throughput_paper":11.23,"handovers_median":23.0833,"failure_median":0.0215,"delay_median":0.1799,"throughput_median":11.0662,"handovers_min":21.9333,"failure_min":0.0075,"delay_min":0.1758,"throughput_min":8.4552,"handovers_max":90.7667,"failure_max":0.039,"delay_max":0.184,"throughput_max":11.1576,"handovers_s42":152.1333,"failure_s42":0.0233,"delay_s42":0.1799,"throughput_s42":6.6939}];
+
+const SEEDS = {"0":[4.0,9.8,18.0,27.0],"1":[14.9,35.5,53.5,90.8],"2":[4.7,8.1,15.6,23.0],"3":[4.5,8.9,12.4,22.8],"4":[4.0,9.8,13.5,23.2],"5":[4.7,10.4,15.7,21.9],"6":[4.6,11.1,13.7,22.1],"7":[4.4,8.6,13.6,22.5],"8":[4.5,8.7,14.0,23.2],"9":[4.9,9.9,13.8,23.8],"42":[23.1,58.7,89.3,152.1]};
+
+const SCALES = [{"scale":2,"users":100,"method":"A3","handovers":30.0,"failure":0.0467,"delay":0.3088,"throughput":0.4012,"handovers_ci":0.0,"failure_ci":0.0125,"delay_ci":0.0017,"throughput_ci":0.0},{"scale":2,"users":100,"method":"LSTM","handovers":23.0,"failure":0.0261,"delay":0.1711,"throughput":5.1705,"handovers_ci":0.0,"failure_ci":0.0095,"delay_ci":0.001,"throughput_ci":0.0},{"scale":2,"users":100,"method":"RL","handovers":9.0333,"failure":0.003,"delay":0.1035,"throughput":10.0091,"handovers_ci":1.0015,"failure_ci":0.0058,"delay_ci":0.0015,"throughput_ci":0.2382},{"scale":2,"users":100,"method":"Proposed","handovers":5.3667,"failure":0.0,"delay":0.1806,"throughput":10.277,"handovers_ci":0.8492,"failure_ci":0.0,"delay_ci":0.0037,"throughput_ci":0.34},{"scale":2,"users":200,"method":"A3","handovers":60.0,"failure":0.05,"delay":0.3102,"throughput":0.2497,"handovers_ci":0.0,"failure_ci":0.0075,"delay_ci":0.0011,"throughput_ci":0.0},{"scale":2,"users":200,"method":"LSTM","handovers":48.0,"failure":0.0264,"delay":0.1711,"throughput":5.0271,"handovers_ci":0.0,"failure_ci":0.0084,"delay_ci":0.0005,"throughput_ci":0.0},{"scale":2,"users":200,"method":"RL","handovers":17.5333,"failure":0.0056,"delay":0.1027,"throughput":10.3544,"handovers_ci":0.7934,"failure_ci":0.006,"delay_ci":0.001,"throughput_ci":0.1226},{"scale":2,"users":200,"method":"Proposed","handovers":9.4333,"failure":0.0033,"delay":0.1784,"throughput":10.7806,"handovers_ci":1.0358,"failure_ci":0.0064,"delay_ci":0.0032,"throughput_ci":0.1584},{"scale":2,"users":300,"method":"A3","handovers":91.0,"failure":0.056,"delay":0.3104,"throughput":0.187,"handovers_ci":0.0,"failure_ci":0.0069,"delay_ci":0.0009,"throughput_ci":0.0},{"scale":2,"users":300,"method":"LSTM","handovers":75.0,"failure":0.028,"delay":0.1707,"throughput":4.6764,"handovers_ci":0.0,"failure_ci":0.0061,"delay_ci":0.0006,"throughput_ci":0.0},{"scale":2,"users":300,"method":"RL","handovers":27.4333,"failure":0.0097,"delay":0.1036,"throughput":9.7382,"handovers_ci":1.6546,"failure_ci":0.0072,"delay_ci":0.0005,"throughput_ci":0.1354},{"scale":2,"users":300,"method":"Proposed","handovers":15.3,"failure":0.028,"delay":0.1819,"throughput":10.2093,"handovers_ci":1.1208,"failure_ci":0.0158,"delay_ci":0.0018,"throughput_ci":0.1042},{"scale":2,"users":500,"method":"A3","handovers":153.0,"failure":0.0458,"delay":0.3111,"throughput":0.1666,"handovers_ci":0.0,"failure_ci":0.0052,"delay_ci":0.001,"throughput_ci":0.0},{"scale":2,"users":500,"method":"LSTM","handovers":120.0,"failure":0.0275,"delay":0.1716,"throughput":5.0582,"handovers_ci":0.0,"failure_ci":0.0055,"delay_ci":0.0005,"throughput_ci":0.0},{"scale":2,"users":500,"method":"RL","handovers":47.7,"failure":0.0031,"delay":0.1043,"throughput":9.4353,"handovers_ci":1.4672,"failure_ci":0.0029,"delay_ci":0.0004,"throughput_ci":0.0887},{"scale":2,"users":500,"method":"Proposed","handovers":21.9667,"failure":0.0114,"delay":0.1813,"throughput":10.1709,"handovers_ci":1.6797,"failure_ci":0.0068,"delay_ci":0.0021,"throughput_ci":0.0997},{"scale":3,"users":100,"method":"A3","handovers":29.0,"failure":0.0276,"delay":0.3066,"throughput":0.1479,"handovers_ci":0.0,"failure_ci":0.0087,"delay_ci":0.0016,"throughput_ci":0.0},{"scale":3,"users":100,"method":"LSTM","handovers":20.0,"failure":0.0317,"delay":0.1721,"throughput":6.802,"handovers_ci":0.0,"failure_ci":0.0118,"delay_ci":0.0005,"throughput_ci":0.0},{"scale":3,"users":100,"method":"RL","handovers":9.3667,"failure":0.0,"delay":0.1034,"throughput":9.7703,"handovers_ci":0.663,"failure_ci":0.0,"delay_ci":0.0012,"throughput_ci":0.1809},{"scale":3,"users":100,"method":"Proposed","handovers":3.9333,"failure":0.0,"delay":0.1841,"throughput":10.7181,"handovers_ci":0.5221,"failure_ci":0.0,"delay_ci":0.0046,"throughput_ci":0.1789},{"scale":3,"users":200,"method":"A3","handovers":60.0,"failure":0.0522,"delay":0.3107,"throughput":0.1078,"handovers_ci":0.0,"failure_ci":0.0157,"delay_ci":0.0011,"throughput_ci":0.0},{"scale":3,"users":200,"method":"LSTM","handovers":49.0,"failure":0.0306,"delay":0.1714,"throughput":4.9552,"handovers_ci":0.0,"failure_ci":0.0105,"delay_ci":0.0005,"throughput_ci":0.0},{"scale":3,"users":200,"method":"RL","handovers":23.5333,"failure":0.0,"delay":0.1004,"throughput":8.6404,"handovers_ci":1.3634,"failure_ci":0.0,"delay_ci":0.0007,"throughput_ci":0.1754},{"scale":3,"users":200,"method":"Proposed","handovers":9.7333,"failure":0.0327,"delay":0.1686,"throughput":9.5506,"handovers_ci":0.8713,"failure_ci":0.0195,"delay_ci":0.0018,"throughput_ci":0.1224},{"scale":3,"users":300,"method":"A3","handovers":89.0,"failure":0.0554,"delay":0.3114,"throughput":0.1252,"handovers_ci":0.0,"failure_ci":0.0084,"delay_ci":0.0011,"throughput_ci":0.0},{"scale":3,"users":300,"method":"LSTM","handovers":71.0,"failure":0.0249,"delay":0.1711,"throughput":4.6886,"handovers_ci":0.0,"failure_ci":0.0083,"delay_ci":0.0006,"throughput_ci":0.0},{"scale":3,"users":300,"method":"RL","handovers":30.7,"failure":0.0207,"delay":0.1037,"throughput":8.6421,"handovers_ci":0.8272,"failure_ci":0.0094,"delay_ci":0.0007,"throughput_ci":0.1238},{"scale":3,"users":300,"method":"Proposed","handovers":17.7333,"failure":0.0122,"delay":0.1762,"throughput":9.0255,"handovers_ci":0.8713,"failure_ci":0.0087,"delay_ci":0.0025,"throughput_ci":0.1099},{"scale":3,"users":500,"method":"A3","handovers":152.0,"failure":0.0432,"delay":0.3096,"throughput":0.1014,"handovers_ci":0.0,"failure_ci":0.0057,"delay_ci":0.0009,"throughput_ci":0.0},{"scale":3,"users":500,"method":"LSTM","handovers":124.0,"failure":0.0269,"delay":0.1702,"throughput":4.2881,"handovers_ci":0.0,"failure_ci":0.005,"delay_ci":0.0005,"throughput_ci":0.0},{"scale":3,"users":500,"method":"RL","handovers":49.7333,"failure":0.0159,"delay":0.1042,"throughput":8.2631,"handovers_ci":2.0966,"failure_ci":0.0042,"delay_ci":0.0004,"throughput_ci":0.1001},{"scale":3,"users":500,"method":"Proposed","handovers":24.4333,"failure":0.0,"delay":0.1835,"throughput":8.82,"handovers_ci":1.8122,"failure_ci":0.0,"delay_ci":0.0013,"throughput_ci":0.0882}];
+
+const state = { src: "median", metric: "handovers", scale: 2 };
+const fmt = (v, d) => Number(v).toFixed(d);
+const pct = v => (v >= 0 ? "+" : "−") + Math.abs(v * 100).toFixed(1) + "%";
+const reduction = (prop, base) => 1 - prop / base;
+const row = (users, method) => T4.find(r => r.users === users && r.method === method);
+const svgEl = (tag, attrs) => { const e = document.createElementNS("http://www.w3.org/2000/svg", tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+
+function status(r, metric, src) {
+  const paper = r[metric + "_paper"], ours = r[metric + "_" + src];
+  const rel = paper === 0 ? Math.abs(ours) : Math.abs(ours - paper) / Math.abs(paper);
+  if (rel < 0.005) return "exact";
+  const inRange = src === "median" && paper >= r[metric + "_min"] && paper <= r[metric + "_max"];
+  const inPaperCI = Math.abs(ours - paper) <= PAPER_CI[metric][T4.indexOf(r)];
+  if (rel <= 0.05 || inRange || inPaperCI) return "close";
+  return r.method === "Proposed" && src === "s42" && metric === "handovers" ? "fail" : "differs";
+}
+const STATUS_TEXT = { exact: "Exact", close: "Close", differs: "Differs", fail: "Collapsed run" };
+
+function renderTiles() {
+  const cells = T4.length * 4;
+  let matched = 0;
+  for (const r of T4) for (const m in METRICS) if (status(r, m, "median") !== "differs") matched++;
+  const p500 = row(500, "Proposed"), a500 = row(500, "A3"), rl500 = row(500, "RL");
+  const tiles = [
+    { label: "Table 4 values matched", value: `${matched}<small> / ${cells}</small>`, note: "exact or close, median of 10 seeds" },
+    { label: "Handover cut vs A3, 500 users", value: `${Math.round(reduction(p500.handovers_median, a500.handovers_median) * 100)}%`, note: `paper: ${Math.round(reduction(p500.handovers_paper, a500.handovers_paper) * 100)}% in Table 4, 82% in the abstract` },
+    { label: "Handover cut vs Q-learning, 500 users", value: `${Math.round(reduction(p500.handovers_median, rl500.handovers_median) * 100)}%`, note: `paper: ${Math.round(reduction(p500.handovers_paper, rl500.handovers_paper) * 100)}% in Table 4, 45–54% in the abstract` },
+    { label: "Seeds where training collapsed", value: `2<small> / 11</small>`, note: "seeds 1 and 42 (the code's default)" },
+  ];
+  document.getElementById("tiles").innerHTML = tiles.map(t =>
+    `<div class="tile"><span class="label">${t.label}</span><span class="value">${t.value}</span><span class="note">${t.note}</span></div>`).join("");
+}
+
+function renderParity() {
+  const host = document.getElementById("parity");
+  host.innerHTML = "";
+  const W = 260, H = 220, L = 46, R = 12, T = 10, B = 34;
+  for (const metric in METRICS) {
+    const xs = T4.map(r => r[metric + "_paper"]), ys = T4.map(r => r[metric + "_" + state.src]);
+    const max = Math.max(...xs, ...ys) * 1.08;
+    const sx = v => L + (v / max) * (W - L - R), sy = v => H - B - (v / max) * (H - T - B);
+    const card = document.createElement("div");
+    card.className = "chart";
+    card.innerHTML = `<h3>${METRICS[metric].label}</h3>`;
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `${METRICS[metric].label}: published versus replicated` });
+    const ticks = [0, max / 2 / 1.08, max / 1.08];
+    for (const t of ticks) {
+      svg.append(svgEl("line", { x1: L, x2: W - R, y1: sy(t), y2: sy(t), class: "axis", "stroke-width": 1 }));
+      const ly = svgEl("text", { x: L - 6, y: sy(t) + 3, "text-anchor": "end" }); ly.textContent = fmt(t, METRICS[metric].digits > 2 ? 2 : (t >= 10 ? 0 : 1)); svg.append(ly);
+      const lx = svgEl("text", { x: sx(t), y: H - B + 14, "text-anchor": "middle" }); lx.textContent = ly.textContent; svg.append(lx);
+    }
+    svg.append(svgEl("line", { x1: sx(0), y1: sy(0), x2: sx(max), y2: sy(max), class: "diag", "stroke-width": 1.2 }));
+    const xl = svgEl("text", { x: (L + W - R) / 2, y: H - 4, "text-anchor": "middle" }); xl.textContent = "published"; svg.append(xl);
+    const yl = svgEl("text", { x: 10, y: (T + H - B) / 2, "text-anchor": "middle", transform: `rotate(-90 10 ${(T + H - B) / 2})` }); yl.textContent = "replicated"; svg.append(yl);
+    T4.forEach((r, i) => {
+      const c = svgEl("circle", { cx: sx(xs[i]), cy: sy(ys[i]), r: 4.5, fill: MCOLOR[r.method], "fill-opacity": 0.85, stroke: "var(--surface)", "stroke-width": 1 });
+      const tip = svgEl("title", {}); tip.textContent = `${r.method}, ${r.users} users: paper ${xs[i]}, replicated ${fmt(ys[i], METRICS[metric].digits)}`; c.append(tip);
+      svg.append(c);
+    });
+    card.append(svg);
+    host.append(card);
+  }
+  document.getElementById("legend").innerHTML = METHODS.map(m => `<span><i class="swatch" style="background:${MCOLOR[m]}"></i>${m === "Proposed" ? "Proposed (Ensemble-DQN)" : m}</span>`).join("");
+}
+
+function renderTable() {
+  const m = state.metric, d = METRICS[m].digits, src = state.src;
+  const ci = PAPER_CI[m];
+  const srcLabel = src === "median" ? "Replicated (median)" : "Replicated (seed 42)";
+  let html = `<thead><tr><th>Users</th><th class="left">Method</th><th>Paper (± 95% CI)</th><th>${srcLabel}</th>${src === "median" ? "<th>Range over seeds 0–9</th>" : ""}<th>Difference</th><th class="left">Status</th></tr></thead><tbody>`;
+  T4.forEach((r, i) => {
+    const paper = r[m + "_paper"], ours = r[m + "_" + src];
+    const diff = paper === 0 ? 0 : (ours - paper) / paper;
+    const st = status(r, m, src);
+    html += `<tr class="${r.method === "A3" && r.users !== 100 ? "group-start" : ""}">
+      <td>${r.method === "A3" ? r.users : ""}</td>
+      <td class="method left"><i class="mdot" style="background:${MCOLOR[r.method]}"></i>${r.method}</td>
+      <td>${fmt(paper, d)} <span class="muted">± ${fmt(ci[i], d)}</span></td>
+      <td>${fmt(ours, d)}</td>
+      ${src === "median" ? `<td class="muted">${fmt(r[m + "_min"], d)} – ${fmt(r[m + "_max"], d)}</td>` : ""}
+      <td>${pct(diff)}</td>
+      <td class="left"><span class="chip ${st}">${STATUS_TEXT[st]}</span></td></tr>`;
+  });
+  document.getElementById("t4").innerHTML = html + "</tbody>";
+}
+
+function renderClaims() {
+  const S = (scale, users, method) => SCALES.find(r => r.scale === scale && r.users === users && r.method === method);
+  const p = (u, mth) => row(u, mth);
+  const range = src => {
+    const cuts = [100, 200, 300, 500].map(u => reduction(p(u, "Proposed")["handovers_" + src], p(u, "RL")["handovers_" + src]));
+    return `${Math.round(Math.min(...cuts) * 100)}–${Math.round(Math.max(...cuts) * 100)}%`;
+  };
+  const rows = [
+    ["Handover cut vs A3, Scale1x, 100 users", `${Math.round(reduction(p(100,"Proposed").handovers_paper, p(100,"A3").handovers_paper)*100)}%`, `${Math.round(reduction(p(100,"Proposed").handovers_median, p(100,"A3").handovers_median)*100)}%`, "close"],
+    ["Handover cut vs A3, Scale1x, 500 users", `${Math.round(reduction(21.3,142)*100)}%`, `${Math.round(reduction(p(500,"Proposed").handovers_median, 142)*100)}%`, "close"],
+    ["Handover cut vs Q-learning, Scale1x, 100–500 users", range("paper"), range("median"), "close"],
+    ["Abstract: cut vs A3", "82%", `${Math.round(reduction(p(500,"Proposed").handovers_median,142)*100)}% (500 users)`, "close"],
+    ["Abstract: cut vs Q-learning", "45–54%", `${range("median")} (Scale1x), ${Math.round(reduction(S(3,500,"Proposed").handovers,S(3,500,"RL").handovers)*100)}% (Scale3x)`, "close"],
+    ["Scale3x, 500 users: Proposed / RL handovers", "21.3 / 46.2", `${fmt(S(3,500,"Proposed").handovers,1)} / ${fmt(S(3,500,"RL").handovers,1)}`, "close"],
+    ["Scale3x, 500 users: cut vs RL / vs A3", "54% / 85%", `${Math.round(reduction(S(3,500,"Proposed").handovers,S(3,500,"RL").handovers)*100)}% / ${Math.round(reduction(S(3,500,"Proposed").handovers,S(3,500,"A3").handovers)*100)}%`, "close"],
+    ["Scale2x, 200 users: throughput Proposed / RL / LSTM / A3 (Mbps)", "11.8 / 11.1 / 7.1 / 0.22", ["Proposed","RL","LSTM","A3"].map(m => fmt(S(2,200,m).throughput, m === "A3" ? 2 : 1)).join(" / "), "differs"],
+    ["Failure rate of RL and Proposed below 3%", "yes", `yes (max ${fmt(Math.max(...T4.filter(r => r.method === "RL" || r.method === "Proposed").map(r => r.failure_median))*100,1)}%)`, "exact"],
+    ["Average delay below 0.2 s (RL and Proposed)", "yes", `yes (max ${fmt(Math.max(...T4.filter(r => r.method === "RL" || r.method === "Proposed").map(r => r.delay_median)),3)} s)`, "exact"],
+    ["Throughput up to 78% higher than RL", "on real data (Fig. 7)", "not checkable without the real data", "na"],
+  ];
+  const label = { exact: "Holds", close: "Close", differs: "Differs", na: "Not checked" };
+  let html = `<thead><tr><th class="left">Claim</th><th>Paper</th><th>Replicated</th><th class="left">Result</th></tr></thead><tbody>`;
+  for (const [claim, paper, ours, st] of rows) {
+    html += `<tr><td class="left" style="font-family:var(--font-body);white-space:normal;min-width:16rem">${claim}</td><td>${paper}</td><td>${ours}</td><td class="left"><span class="chip ${st}">${label[st]}</span></td></tr>`;
+  }
+  document.getElementById("claims").innerHTML = html + "</tbody>";
+}
+
+function renderSeeds() {
+  const host = document.getElementById("seeds");
+  const seeds = ["0","1","2","3","4","5","6","7","8","9","42"];
+  const users = [100, 200, 300, 500];
+  const W = 260, H = 170, L = 40, R = 10, T = 12, B = 30;
+  users.forEach((u, k) => {
+    const vals = seeds.map(s => SEEDS[s][k]);
+    const paper = row(u, "Proposed").handovers_paper, a3 = row(u, "A3").handovers_paper;
+    const max = Math.max(...vals, a3) * 1.1;
+    const sx = i => L + (i + 0.5) * (W - L - R) / seeds.length, sy = v => H - B - (v / max) * (H - T - B);
+    const card = document.createElement("div");
+    card.className = "chart";
+    card.innerHTML = `<h3>${u} users</h3>`;
+    const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", "aria-label": `Proposed handovers per seed at ${u} users` });
+    for (const t of [0, max / 2, max]) {
+      svg.append(svgEl("line", { x1: L, x2: W - R, y1: sy(t), y2: sy(t), class: "axis", "stroke-width": 1 }));
+      const ly = svgEl("text", { x: L - 6, y: sy(t) + 3, "text-anchor": "end" }); ly.textContent = Math.round(t); svg.append(ly);
+    }
+    svg.append(svgEl("line", { x1: L, x2: W - R, y1: sy(a3), y2: sy(a3), stroke: "var(--m-a3)", "stroke-width": 1, "stroke-dasharray": "2 3" }));
+    const al = svgEl("text", { x: W - R, y: sy(a3) - 4, "text-anchor": "end" }); al.textContent = `A3 ${a3}`; svg.append(al);
+    svg.append(svgEl("line", { x1: L, x2: W - R, y1: sy(paper), y2: sy(paper), stroke: "var(--ink)", "stroke-width": 1.2, "stroke-dasharray": "5 4" }));
+    const pl = svgEl("text", { x: L + 4, y: sy(paper) - 4 }); pl.textContent = `paper ${paper}`; svg.append(pl);
+    seeds.forEach((s, i) => {
+      const bad = s === "1" || s === "42";
+      const c = svgEl("circle", { cx: sx(i), cy: sy(vals[i]), r: 4.5, fill: bad ? "var(--bad)" : "var(--m-prop)", stroke: "var(--surface)", "stroke-width": 1 });
+      const tip = svgEl("title", {}); tip.textContent = `seed ${s}: ${vals[i]} handovers`; c.append(tip); svg.append(c);
+      const lx = svgEl("text", { x: sx(i), y: H - B + 14, "text-anchor": "middle" }); lx.textContent = s; svg.append(lx);
+    });
+    const xl = svgEl("text", { x: (L + W - R) / 2, y: H - 3, "text-anchor": "middle" }); xl.textContent = "experiment seed"; svg.append(xl);
+    card.append(svg);
+    host.append(card);
+  });
+}
+
+function renderScales() {
+  const rows = SCALES.filter(r => r.scale === state.scale);
+  let html = `<thead><tr><th>Users</th><th class="left">Method</th><th>Handovers</th><th>Failure</th><th>Delay (s)</th><th>Throughput (Mbps)</th></tr></thead><tbody>`;
+  for (const r of rows) {
+    const cell = (m, d) => `${fmt(r[m], d)} <span class="muted">± ${fmt(r[m + "_ci"], d)}</span>`;
+    html += `<tr class="${r.method === "A3" && r.users !== 100 ? "group-start" : ""}"><td>${r.method === "A3" ? r.users : ""}</td>
+      <td class="method left"><i class="mdot" style="background:${MCOLOR[r.method]}"></i>${r.method}</td>
+      <td>${cell("handovers", 1)}</td><td>${cell("failure", 3)}</td><td>${cell("delay", 3)}</td><td>${cell("throughput", 2)}</td></tr>`;
+  }
+  document.getElementById("scales").innerHTML = html + "</tbody>";
+}
+
+function bindToggle(id, key, parse, after) {
+  const group = document.getElementById(id);
+  group.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    state[key] = parse(b.dataset[key === "src" ? "src" : key]);
+    group.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    after();
+  });
+}
+
+bindToggle("src-toggle", "src", v => v, () => { renderParity(); renderTable(); });
+bindToggle("metric-toggle", "metric", v => v, renderTable);
+bindToggle("scale-toggle", "scale", Number, renderScales);
+renderTiles(); renderParity(); renderTable(); renderClaims(); renderSeeds(); renderScales();
+</script>
+
+</body>
+</html>

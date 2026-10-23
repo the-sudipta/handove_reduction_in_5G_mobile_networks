@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Authors' code and regenerated data (fetched/rebuilt by scripts)
+replication/upstream/
+replication/data/
+*.log
+
+# Copyrighted reference papers (kept locally only)
+docs/previous_works/

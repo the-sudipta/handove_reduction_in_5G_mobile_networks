@@ -40,7 +40,7 @@ def train_by_interaction(sim: Simulator, policy, episodes: int, users: int, log=
         log(f"    {policy.name:9s} episode {e + 1:2d}/{episodes}  reward/decision {score:+.3f}"
             f"  explore {policy.explore_rate():.2f}")
     policy.restore(best)
-    policy.training = False
+    policy.freeze()
     return policy
 
 

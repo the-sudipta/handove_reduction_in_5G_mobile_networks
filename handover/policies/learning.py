@@ -31,6 +31,10 @@ class LearningPolicy(Policy):
     def snapshot(self): ...
     def restore(self, snapshot) -> None: ...
 
+    def freeze(self) -> None:
+        """End of training: act greedily (with the margin) from now on."""
+        self.training = False
+
     # --- Shared logic ---
     def explore_rate(self) -> float:
         progress = min(self.decisions_seen / self.explore_decisions, 1.0)

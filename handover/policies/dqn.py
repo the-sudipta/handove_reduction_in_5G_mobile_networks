@@ -81,6 +81,12 @@ class DQNPolicy(LearningPolicy):
         if self.updates % self.target_sync == 0:
             self.target.load_state_dict(self.online.state_dict())
 
+    def freeze(self):
+        """Drop training-only state so the policy is small enough to send to workers."""
+        super().freeze()
+        self.buffer.clear()
+        self.target = self.optimizer = None
+
     def snapshot(self):
         return copy.deepcopy(self.online.state_dict())
 
